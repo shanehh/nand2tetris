@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+import parser
+"""
+With a simple interaction.
+"""
+
+
+def cmd_arg() -> str:
+    import sys
+    if len(sys.argv) < 2:
+        sys.exit(f"Error: expected an .asm file")
+    return sys.argv[1]
+
+
+def main(file_name):
+    parser(file_name)
+
+
+def show_help():
+    print('assemble .asm to .hack')
+
+
+if __name__ == "__main__":
+    a = cmd_arg()
+    # print(a)
+    if a == '-h' or a == '--help':
+        show_help()
+    else:
+        main(a)
