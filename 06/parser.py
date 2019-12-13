@@ -1,5 +1,6 @@
 import sys
 import code
+import Symbol_table
 
 
 def read_file(name):
@@ -64,12 +65,17 @@ def is_useless(line):
     return l.startswith('//') or l == ''
 
 
-def parser(file_name):
-    # open dest file.
-    d = dest_file(file_name)
-    print('destination:', d)
-    f = open(d, 'w+')
+def is_const(char):
+    try:
+        int(char)
+        return True
+    except ValueError:
+        return False
 
+
+def first_pass(file_name: str, tb: Symbol_table):
+    # record
+    line_num = 0
     for line in read_file(file_name):
         l = line.strip()
         if is_useless(l):
@@ -77,9 +83,43 @@ def parser(file_name):
             continue
 
         t = command_type(l)
+        if t == 'L':
+            # '(ADSDA)' -> 'ADSDA'
+            content = l[1:-1]
+            tb.add_entry(content, line_num)
+        else:
+            # A or C
+            line_num += 1
+
+
+def second_pass(file_name: str, tb: Symbol_table, dest_file):
+    f = dest_file
+
+    for line in read_file(file_name):
+        l = line.strip()
+        if is_useless(l):
+            # comments or blank line
+            continue
+
+        # clear Inline Comments!
+        # 'M=D  // M[2] = D (greatest number)' -> 'M=D'
+        l = l.split('//')[0].strip()
+
+        t = command_type(l)
         if t == 'A':
-            # @123 -> 123
-            const = int(l[1:])
+            # '@ABC' -> 'ABC'
+            # '@123' -> '123'
+            content = l[1:]
+            if is_const(content[0]):
+                # is a num
+                const = int(content)
+            else:
+                # is a symbol
+                if not tb.contains(content):
+                    # first used variable
+                    tb.add_entry(content)
+                # then get it.
+                const = tb.get_address(content)
             # convert int to string of 16bits binary-num.
             c = f'{const:016b}'
             print('A_COMMAND:', c)
@@ -87,9 +127,24 @@ def parser(file_name):
             # dest, comp, jump = c_parts(l)
             c = code(c_parts(l))
             print('C_COMMAND:', c)
+        elif t == 'L':
+            # do nothing
+            continue
         # write one code
         f.write(c + '\n')
-    f.close()
+
+
+def parser(file_name):
+    # first pass for adding label infos to the symbol table.
+    tb = Symbol_table()
+    first_pass(file_name, tb)
+
+    # open dest file.
+    d = dest_file(file_name)
+    print('destination:', d)
+    with open(d, 'w+') as f:
+        # then make the perfect!
+        second_pass(file_name, tb, f)
 
 
 sys.modules[__name__] = parser
