@@ -9,11 +9,6 @@ def read_file(name):
             yield l
 
 
-def write_file(name):
-    with open(name, 'w+') as f:
-        pass
-
-
 def command_type(line):
     l = line
     # fist char
@@ -73,13 +68,23 @@ def is_const(char):
         return False
 
 
+def clear_line(line):
+    l = line.strip()
+    if is_useless(l):
+        # comments or blank line
+        return None
+
+    # clear Inline Comments!
+    # 'M=D  // M[2] = D (greatest number)' -> 'M=D'
+    return l.split('//')[0].strip()
+
+
 def first_pass(file_name: str, tb: Symbol_table):
     # record
     line_num = 0
     for line in read_file(file_name):
-        l = line.strip()
-        if is_useless(l):
-            # comments or blank line
+        l = clear_line(line)
+        if l is None:
             continue
 
         t = command_type(l)
@@ -96,22 +101,18 @@ def second_pass(file_name: str, tb: Symbol_table, dest_file):
     f = dest_file
 
     for line in read_file(file_name):
-        l = line.strip()
-        if is_useless(l):
-            # comments or blank line
+        l = clear_line(line)
+        if l is None:
             continue
-
-        # clear Inline Comments!
-        # 'M=D  // M[2] = D (greatest number)' -> 'M=D'
-        l = l.split('//')[0].strip()
 
         t = command_type(l)
         if t == 'A':
             # '@ABC' -> 'ABC'
             # '@123' -> '123'
             content = l[1:]
+
+            # To predicate the first char if it's a num.
             if is_const(content[0]):
-                # is a num
                 const = int(content)
             else:
                 # is a symbol
@@ -120,6 +121,7 @@ def second_pass(file_name: str, tb: Symbol_table, dest_file):
                     tb.add_entry(content)
                 # then get it.
                 const = tb.get_address(content)
+
             # convert int to string of 16bits binary-num.
             c = f'{const:016b}'
             print('A_COMMAND:', c)
@@ -128,9 +130,10 @@ def second_pass(file_name: str, tb: Symbol_table, dest_file):
             c = code(c_parts(l))
             print('C_COMMAND:', c)
         elif t == 'L':
-            # do nothing
+            # do nothing.
             continue
-        # write one code
+
+        # write one line
         f.write(c + '\n')
 
 
